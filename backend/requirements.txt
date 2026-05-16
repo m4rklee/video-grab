@@ -1,0 +1,7 @@
+fastapi>=0.128.0
+uvicorn[standard]>=0.38.0
+yt-dlp>=2026.5.1
+pytest>=9.0.0
+httpx>=0.28.0
+curl-cffi>=0.7.0
+gmssl>=3.2.1

@@ -1,0 +1,24 @@
+{
+  "name": "videograb-ai-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 9280 --strictPort",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 9280 --strictPort"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "^6.0.3",
+    "lucide-vue-next": "^0.556.0",
+    "vite": "^7.3.1",
+    "vue": "^3.5.25"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.1.8"
+  }
+}
