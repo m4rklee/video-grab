@@ -1,6 +1,13 @@
-# VideoGrab AI：视频解析与下载实现总结
+# 拾影视频下载器（Video Grab）：视频解析与下载实现总结
 
-本文档沉淀当前 MVP 中「链接解析 → 选格式 → 异步下载 → 浏览器取文件」的工程实现，便于交接与二次开发。
+本文档沉淀当前 MVP 中「链接解析 → 选格式 → 异步下载 → 浏览器取文件」的后端工程实现，便于交接与二次开发。
+
+**关联文档**
+
+- 文档导航与维护分工：[README.md](./README.md)（本目录）
+- 端口、环境变量与代理：[CONFIGURATION.md](./CONFIGURATION.md)
+- 前端页面结构、设置、AI Tab、导图：[FRONTEND.md](./FRONTEND.md)
+- 仓库入口说明与验收清单：根目录 [README.md](../README.md)
 
 ## 产品目标
 
@@ -12,20 +19,42 @@
 
 | 层级 | 技术栈 | 说明 |
 |------|--------|------|
-| 前端 | Vue 3 + Vite + TypeScript | 默认开发端口 `9280`（`strictPort`），通过 Vite 代理访问后端。 |
+| 前端 | Vue 3 + Vite + TypeScript | 默认开发端口 `9280`（`strictPort`）；开发时经 Vite 代理访问后端，部署静态页时可在界面 **设置** 填写后端根 URL（见 [FRONTEND.md](./FRONTEND.md)）。 |
 | 后端 | FastAPI + uvicorn | 默认建议端口 `8028`（与前端代理一致）。 |
 | 通用下载 | yt-dlp | `extract_info`（探测）与 `download`（拉取合并）。 |
 | 系统依赖 | ffmpeg | 音视频合并等；健康检查 `GET /api/health` 会报告是否可用。 |
 
 核心 HTTP API（与根目录 `README.md` 一致）：
 
-- `GET /api/health`：依赖探测。
+- `POST /api/search`：关键词搜索，**NDJSON 流式**返回（`meta` → 分批 `items` → 可选 `warning` → `done`）；YouTube / B 站并行拉取，前端边收边展示。
+- `POST /api/downloads/batch`：对多个 URL 依次创建下载任务（可选统一 `format_id`）。
 - `POST /api/video/probe`：解析链接，返回标题与格式选项。
 - `POST /api/downloads`：创建任务。
 - `GET /api/downloads/{job_id}`：任务状态。
 - `GET /api/downloads/{job_id}/file`：完成后下载文件。
+- `POST /api/summarize`：创建 **AI 视频总结** 异步任务（需 `OPENAI_API_KEY`）。
+- `GET /api/summarize/{job_id}`：总结任务状态；完成时 `result` 含 `outline`、`key_points`、`segments`、`mindmap`。
+- `POST /api/summarize/{job_id}/chat`：基于总结与转写节选的多轮问答。
 
-编排入口：`backend/app/services.py`（`probe_video`、`create_download_job`、`_run_download` 等）。
+环境变量（总结功能）：
+
+- `OPENAI_API_KEY`：OpenAI 兼容 Chat Completions（必填）。
+- `OPENAI_BASE_URL`：默认 `https://api.openai.com/v1`。
+- `SUMMARIZE_MODEL`：默认 `gpt-4o-mini`。
+- `YOUTUBE_DATA_API_KEY`：可选；用于 YouTube Data API `captions.list` 与 yt-dlp 字幕链路配合。
+
+字幕策略见下文「AI 视频总结」；临时文件目录 `backend/summarize_jobs/`（与 `downloads/` 类似，已加入 `.gitignore`）。
+
+## AI 视频总结（扩展）
+
+模块：`backend/app/transcript.py`（字幕/时间轴）、`summarize_llm.py`（OpenAI 兼容 JSON 输出）、`summarize_service.py`（异步任务与对话）。
+
+- **YouTube**：可选 `YOUTUBE_DATA_API_KEY` 调用 `captions.list`；实际字幕正文优先由 **yt-dlp** 写入 WebVTT/JSON3 再解析。
+- **Bilibili**：`api.bilibili.com/x/web-interface/view` + `x/player/v2` 读取官方字幕 URL；失败则 **yt-dlp**。
+- **抖音**：`fetch_aweme_detail` 详情 JSON 内嵌字幕 URL（若有）；否则 **yt-dlp**；仍无则报错（预留 ASR 对接点）。
+- **其它平台**：直接 **yt-dlp** 字幕/自动字幕。
+
+LLM 单次输出结构化 JSON（大纲、要点、分段、思维导图树），前端用 **markmap** 渲染 SVG；交互与导出方式见 [FRONTEND.md](./FRONTEND.md)。
 
 ## 通用站点（非抖音）
 
@@ -83,12 +112,14 @@
 
 | 文件 | 职责 |
 |------|------|
-| `backend/app/main.py` | 路由注册 |
-| `backend/app/services.py` | 探测、任务、下载编排、URL 规范化 |
+| `backend/app/search_service.py` | YouTube / B 站关键词搜索（yt-dlp 伪 URL），分页切片 |
+| `backend/app/services.py` | 探测、下载任务编排、URL 规范化 |
+| `backend/app/summarize_service.py` | AI 总结异步任务、转写落盘、追问会话 `chat.json` |
 | `backend/app/douyin_web.py` | 抖音详情、分享页解析、媒体请求头 |
 | `backend/app/douyin_abogus.py` | a_bogus 签名（来自 f2 生态，Apache 2.0） |
-| `backend/tests/test_api.py` | API 与抖音分支单测（含 mock 与部分行为） |
+| `backend/app/transcript.py` | 多平台字幕获取（官方 API 优先 + yt-dlp） |
+| `backend/app/summarize_llm.py` | OpenAI 兼容 API：总结 JSON + 追问 |
 
 ---
 
-*文档版本与代码库同步维护；修改下载链路时请同步更新本节。*
+*文档版本与代码库同步维护；修改下载或总结链路时请同步更新本节。*

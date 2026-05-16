@@ -5,3 +5,4 @@ pytest>=9.0.0
 httpx>=0.28.0
 curl-cffi>=0.7.0
 gmssl>=3.2.1
+python-dotenv>=1.0.0

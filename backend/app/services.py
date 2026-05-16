@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextvars
 import shutil
+import subprocess
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -12,7 +14,8 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 from yt_dlp import YoutubeDL
 
-from . import douyin_web
+from . import bilibili_legacy, douyin_web
+from .bilibili_cookie import resolve_bilibili_cookie
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DOWNLOAD_ROOT = BASE_DIR / "downloads"
@@ -126,31 +129,101 @@ def _estimate_merged_size(
     return None
 
 
+def _estimate_bilibili_legacy_mux_bytes(lf: dict[str, Any], duration_sec: float | int | None) -> int | None:
+    """Rough muxed size for bilibili_legacy: lf['tbr'] is (video_bps+audio_bps)/1000 from classic DASH."""
+    if duration_sec is None:
+        return None
+    try:
+        dur = float(duration_sec)
+    except (TypeError, ValueError):
+        return None
+    if dur <= 0:
+        return None
+    try:
+        kbps = float(lf.get("tbr") or 0)
+    except (TypeError, ValueError):
+        return None
+    if kbps <= 0:
+        return None
+    total_bps = kbps * 1000.0
+    return int(dur * total_bps / 8.0)
+
+
+def _recommended_format_id(formats: list[dict[str, Any]], webpage_url: str) -> str | None:
+    if not formats:
+        return None
+    host = (urlparse(webpage_url).hostname or "").lower()
+    if "bilibili.com" not in host:
+        return formats[0]["format_id"]
+    for prefer in ("bilibili_legacy|80", "bilibili_legacy|116", "bilibili_legacy|112"):
+        if any(f["format_id"] == prefer for f in formats):
+            return prefer
+    for f in formats:
+        fid = str(f.get("format_id") or "")
+        if fid.startswith("bilibili_legacy|"):
+            return fid
+    return formats[0]["format_id"]
+
+
 def _build_format_options(info: dict[str, Any]) -> list[dict[str, Any]]:
     formats = info.get("formats") or []
-    best_audio = _best_audio_format(formats)
+    legacy_fmts = [
+        f
+        for f in formats
+        if isinstance(f.get("format_id"), str) and str(f["format_id"]).startswith("bilibili_legacy|")
+    ]
+    base_formats = [f for f in formats if f not in legacy_fmts]
+
+    best_audio = _best_audio_format(base_formats)
     heights = sorted(
         {
             f.get("height")
-            for f in formats
+            for f in base_formats
             if f.get("vcodec") != "none" and isinstance(f.get("height"), int)
         },
         reverse=True,
     )
 
-    options: list[dict[str, Any]] = [
+    options: list[dict[str, Any]] = []
+
+    if legacy_fmts:
+        legacy_sorted = sorted(legacy_fmts, key=lambda x: int(x.get("height") or 0), reverse=True)
+        seen_h: set[int] = set()
+        first_rec = True
+        for lf in legacy_sorted:
+            h = int(lf.get("height") or 0)
+            if h in seen_h:
+                continue
+            seen_h.add(h)
+            size_est = _estimate_bilibili_legacy_mux_bytes(lf, info.get("duration"))
+            label = f'{h}p · H.264（高清解析）'
+            note = "classic playurl DASH 合并音视频，推荐用于 1080p；登录 Cookie 可提高成功率"
+            opt = {
+                "format_id": str(lf["format_id"]),
+                "label": label,
+                "ext": "mp4",
+                "resolution": f"{h}p",
+                "filesize": size_est,
+                "note": note,
+            }
+            if first_rec:
+                opt["label"] = f"推荐 · {label}"
+                first_rec = False
+            options.append(opt)
+
+    options.append(
         {
             "format_id": "bv*+ba/b",
-            "label": "最佳画质（推荐）",
+            "label": "自动画质（yt-dlp）",
             "ext": "mp4",
             "resolution": "自动选择",
-            "filesize": _estimate_merged_size(formats, None, best_audio),
-            "note": "优先下载高画质视频并合并音频，体积为预估值",
+            "filesize": _estimate_merged_size(base_formats, None, best_audio),
+            "note": "按 yt-dlp 默认解析（部分稿件匿名仅到 480p）",
         }
-    ]
+    )
 
     for height in heights[:4]:
-        estimated_size = _estimate_merged_size(formats, height, best_audio)
+        estimated_size = _estimate_merged_size(base_formats, height, best_audio)
         options.append(
             {
                 "format_id": f"bv*[height<={height}]+ba/b[height<={height}]/b",
@@ -258,22 +331,32 @@ def probe_video(url: str) -> dict[str, Any]:
             "formats": _build_douyin_ui_format_options(inner),
         }
 
-    ydl_opts = {
+    ydl_opts: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
     }
+    ck = resolve_bilibili_cookie()
+    if ck:
+        ydl_opts["http_headers"] = {"Cookie": ck}
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
+    webpage = info.get("webpage_url") or url
+    host = (urlparse(webpage).hostname or "").lower()
+    if "bilibili.com" in host:
+        bilibili_legacy.merge_legacy_formats_into_info(webpage, info)
+
+    formats = _build_format_options(info)
     return {
         "title": info.get("title") or "Untitled video",
-        "webpage_url": info.get("webpage_url") or url,
+        "webpage_url": webpage,
         "extractor": info.get("extractor_key") or info.get("extractor"),
         "duration": info.get("duration"),
         "thumbnail": info.get("thumbnail"),
-        "formats": _build_format_options(info),
+        "formats": formats,
+        "recommended_format_id": _recommended_format_id(formats, webpage),
     }
 
 
@@ -285,7 +368,8 @@ def create_download_job(url: str, format_id: str | None) -> DownloadJob:
     job = DownloadJob(job_id=job_id, work_dir=work_dir)
     with JOBS_LOCK:
         JOBS[job_id] = job
-    EXECUTOR.submit(_run_download, job_id, url, format_id)
+    ctx = contextvars.copy_context()
+    EXECUTOR.submit(ctx.run, _run_download, job_id, url, format_id)
     return job
 
 
@@ -299,6 +383,12 @@ def _set_job(job_id: str, **updates: Any) -> None:
         job = JOBS[job_id]
         for key, value in updates.items():
             setattr(job, key, value)
+    try:
+        from .batch_download_service import on_child_job_updated
+
+        on_child_job_updated(job_id)
+    except Exception:
+        pass
 
 
 def _progress_hook(job_id: str):
@@ -368,9 +458,89 @@ def _run_douyin_download(job_id: str, url: str, format_id: str | None, work_dir:
     )
 
 
+def _sanitize_download_title_fragment(raw: str, fallback: str) -> str:
+    text = (raw or fallback).strip() or fallback
+    for ch in '<>:"/\\|?*\x00':
+        text = text.replace(ch, "_")
+    return text[:120]
+
+
+def _run_bilibili_legacy_download(job_id: str, url: str, format_id: str, work_dir: Path) -> None:
+    parts = format_id.split("|", 1)
+    if len(parts) != 2 or parts[0] != "bilibili_legacy":
+        raise RuntimeError("无效的 bilibili_legacy 格式 ID")
+    qn = int(parts[1])
+    bvid = bilibili_legacy.resolve_bilibili_bvid(url)
+    if not bvid:
+        raise RuntimeError("无法识别 Bilibili BV 号")
+    cid = bilibili_legacy.fetch_cid(bvid)
+    if cid is None:
+        raise RuntimeError("无法获取稿件 cid")
+
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if not ffmpeg_bin:
+        raise RuntimeError("未检测到 ffmpeg，无法合并音视频")
+
+    meta_opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True}
+    with YoutubeDL(meta_opts) as ydl:
+        meta = ydl.extract_info(url, download=False)
+    title_fragment = _sanitize_download_title_fragment(str(meta.get("title") or ""), "bilibili")
+    vid = meta.get("id") or bvid
+    out_path = work_dir / f"{title_fragment} [{vid}]_{qn}.mp4"
+
+    vu, au = bilibili_legacy.resolve_legacy_mux_urls(bvid, cid, qn)
+    hdr = bilibili_legacy.ffmpeg_headers_arg_for_bilibili(bvid)
+
+    cmd = [
+        ffmpeg_bin,
+        "-hide_banner",
+        "-loglevel",
+        "warning",
+        "-y",
+        "-headers",
+        hdr,
+        "-i",
+        vu,
+        "-headers",
+        hdr,
+        "-i",
+        au,
+        "-c",
+        "copy",
+        "-movflags",
+        "+faststart",
+        str(out_path),
+    ]
+
+    _set_job(job_id, progress=10.0)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+    if proc.returncode != 0:
+        err_tail = (proc.stderr or "")[-1200:]
+        raise RuntimeError(err_tail.strip() or "ffmpeg 合并音视频失败")
+
+    if not out_path.is_file():
+        raise RuntimeError("ffmpeg 已完成但未生成输出文件")
+
+    _set_job(
+        job_id,
+        status="completed",
+        progress=100.0,
+        filename=out_path.name,
+        file_path=str(out_path),
+    )
+
+
 def _run_download(job_id: str, url: str, format_id: str | None) -> None:
     job = get_job(job_id)
     if job is None:
+        return
+
+    if format_id and format_id.startswith("bilibili_legacy|"):
+        try:
+            _set_job(job_id, status="downloading", progress=1.0)
+            _run_bilibili_legacy_download(job_id, url, format_id, job.work_dir)
+        except Exception as exc:
+            _set_job(job_id, status="failed", error=str(exc), progress=0)
         return
 
     ydl_format = format_id or "bv*+ba/b"

@@ -8,8 +8,14 @@ export default defineConfig({
     port: 9280,
     strictPort: true,
     proxy: {
+      // 搜索流式 NDJSON：单独代理并拉长超时，减轻 dev 代理缓冲（仍异常时在设置里直连后端）
+      '/api/search': {
+        target: process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8028',
+        changeOrigin: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
       '/api': {
-        // 8000 常被其它项目占用；本仓库默认连 VideoGrab 后端 8028（可用 VITE_API_TARGET 覆盖）
         target: process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8028',
         changeOrigin: true,
       },

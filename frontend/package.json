@@ -1,5 +1,5 @@
 {
-  "name": "videograb-ai-frontend",
+  "name": "video-grab-frontend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,11 @@
   },
   "dependencies": {
     "@vitejs/plugin-vue": "^6.0.3",
+    "d3": "^7.9.0",
+    "jszip": "^3.10.1",
     "lucide-vue-next": "^0.556.0",
+    "markmap-lib": "^0.18.12",
+    "markmap-view": "^0.18.12",
     "vite": "^7.3.1",
     "vue": "^3.5.25"
   },
@@ -18,6 +22,7 @@
     "node": ">=22.12.0"
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.1.8"
   }
