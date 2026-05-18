@@ -1,4 +1,4 @@
-# 🎬 拾影视频下载器（Video Grab）📥
+# 🎬 拾影视频下载器 📥
 
 > 自托管的公开视频 **关键词搜索**、**多平台解析下载** 与 **AI 字幕总结** 工具。前端 Vue 3 + TypeScript，后端 FastAPI，下载与解析基于 yt-dlp（抖音等有专用补充链路）。
 
@@ -18,7 +18,7 @@
 
 ---
 
-**拾影视频下载器**（英文名 Video Grab；「拾影」意为拾起、留存影像）界面分为 **视频搜索**、**视频下载** 与 **下载任务** 三大板块，形成「发现 / 粘贴链接 → 选格式 → 异步下载 → 浏览器保存」闭环；配置 OpenAI 兼容 API 后可对字幕生成 **AI 概要、时间轴、思维导图与多轮对话**。
+**拾影视频下载器** 界面分为 **视频搜索**、**视频下载** 与 **下载任务** 三大板块，形成「发现 / 粘贴链接 → 选格式 → 异步下载 → 浏览器保存」闭环；配置 OpenAI 兼容 API 后可对字幕生成 **AI 概要、时间轴、思维导图与多轮对话**。
 
 ## 📚 文档索引
 
@@ -30,8 +30,6 @@
 | [docs/VIDEO_DOWNLOAD_SUMMARY.md](docs/VIDEO_DOWNLOAD_SUMMARY.md) | 后端解析与下载链路（含抖音、字幕与总结） |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献与本地开发 |
 | [SECURITY.md](SECURITY.md) | 自托管部署与安全说明 |
-
-**📝 维护约定**：解析、下载细节以 [docs/VIDEO_DOWNLOAD_SUMMARY.md](docs/VIDEO_DOWNLOAD_SUMMARY.md) 为准；界面见 [docs/FRONTEND.md](docs/FRONTEND.md)；配置见 [docs/CONFIGURATION.md](docs/CONFIGURATION.md)。
 
 ## 🖥️ 界面与配置（摘要）
 
