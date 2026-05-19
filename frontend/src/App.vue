@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { zoomTransform } from 'd3'
+import { marked } from 'marked'
 import { Transformer } from 'markmap-lib'
 import { Markmap } from 'markmap-view'
 import {
@@ -144,6 +145,12 @@ const errorMessage = ref('')
 let poller: number | undefined
 let summarizePoll: number | undefined
 let summarizeMarkmap: Markmap | null = null
+
+marked.setOptions({
+  async: false,
+  breaks: true,
+  gfm: true,
+})
 
 const canProbe = computed(() => videoUrl.value.trim().length > 0 && !isProbing.value)
 const selectedFormatInfo = computed(() =>
@@ -602,6 +609,72 @@ async function sendSummarizeChat() {
   } catch (error) {
     chatMessages.value.push({ role: 'assistant', content: `错误：${getErrorText(error, '请求失败')}` })
   }
+}
+
+function renderChatMarkdown(content: string) {
+  return sanitizeMarkdownHtml(marked.parse(content, { async: false }) as string)
+}
+
+function sanitizeMarkdownHtml(html: string) {
+  const template = document.createElement('template')
+  template.innerHTML = html
+  const allowedTags = new Set([
+    'A',
+    'BLOCKQUOTE',
+    'BR',
+    'CODE',
+    'EM',
+    'H1',
+    'H2',
+    'H3',
+    'H4',
+    'H5',
+    'H6',
+    'HR',
+    'LI',
+    'OL',
+    'P',
+    'PRE',
+    'STRONG',
+    'TABLE',
+    'TBODY',
+    'TD',
+    'TH',
+    'THEAD',
+    'TR',
+    'UL',
+  ])
+  const allowedAttrs: Record<string, Set<string>> = {
+    A: new Set(['href', 'title', 'target', 'rel']),
+  }
+
+  const cleanNode = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement
+        if (!allowedTags.has(el.tagName)) {
+          el.replaceWith(...Array.from(el.childNodes))
+          continue
+        }
+        for (const attr of Array.from(el.attributes)) {
+          if (!allowedAttrs[el.tagName]?.has(attr.name)) el.removeAttribute(attr.name)
+        }
+        if (el.tagName === 'A') {
+          const href = el.getAttribute('href') || ''
+          if (!/^(https?:|mailto:|#)/i.test(href)) {
+            el.removeAttribute('href')
+          } else {
+            el.setAttribute('target', '_blank')
+            el.setAttribute('rel', 'noreferrer noopener')
+          }
+        }
+      }
+      cleanNode(child)
+    }
+  }
+
+  cleanNode(template.content)
+  return template.innerHTML
 }
 
 function resetResult() {
@@ -1091,12 +1164,12 @@ function getErrorText(error: unknown, fallback: string) {
                       </div>
                     </div>
 
-                    <div v-show="aiSummaryTab === 'chat'" class="ai-tab-panel" role="tabpanel">
+                    <div v-show="aiSummaryTab === 'chat'" class="ai-tab-panel chat-panel" role="tabpanel">
                       <h4 class="ai-tab-heading sr-only">与视频对话</h4>
                       <div class="chat-log">
                         <div v-for="(m, i) in chatMessages" :key="i" :class="['chat-bubble', m.role]">
                           <span class="chat-role">{{ m.role === 'user' ? '你' : 'AI' }}</span>
-                          <p>{{ m.content }}</p>
+                          <div class="chat-markdown" v-html="renderChatMarkdown(m.content)" />
                         </div>
                       </div>
                       <form class="chat-form" @submit.prevent="sendSummarizeChat">
@@ -1156,7 +1229,7 @@ function getErrorText(error: unknown, fallback: string) {
 
     <footer class="site-footer" role="contentinfo">
       <div class="site-footer-inner">
-        <p class="site-footer-line"><strong>拾影视频下载器</strong>（Video Grab）· 本地解析与保存</p>
+        <p class="site-footer-line"><strong>拾影视频下载器</strong> · 本地解析与保存</p>
         <p class="site-footer-note">
           请仅下载你拥有保存权利或已获授权的内容；遵守平台服务条款与当地法规。
         </p>

@@ -214,7 +214,7 @@ def _build_format_options(info: dict[str, Any]) -> list[dict[str, Any]]:
     options.append(
         {
             "format_id": "bv*+ba/b",
-            "label": "自动画质（yt-dlp）",
+            "label": "自动画质",
             "ext": "mp4",
             "resolution": "自动选择",
             "filesize": _estimate_merged_size(base_formats, None, best_audio),

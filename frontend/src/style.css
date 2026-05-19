@@ -1579,6 +1579,20 @@ h1 {
   border-radius: 0.65rem;
   background: #0b1220;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e5eefc;
+}
+
+.markmap-svg text,
+.markmap-svg foreignObject,
+.markmap-svg .markmap-node {
+  color: #e5eefc;
+  fill: #e5eefc;
+}
+
+.markmap-svg a,
+.markmap-svg .markmap-node a {
+  color: #bfdbfe;
+  fill: #bfdbfe;
 }
 
 .mindmap-block {
@@ -1690,12 +1704,20 @@ h1 {
   color: #fecaca;
 }
 
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(22rem, 48vh, 34rem);
+}
+
 .chat-log {
-  max-height: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding-bottom: 0.8rem;
 }
 
 .chat-bubble {
@@ -1723,6 +1745,97 @@ h1 {
   margin-bottom: 0.2rem;
 }
 
+.chat-markdown {
+  line-height: 1.55;
+}
+
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown p,
+.chat-markdown ul,
+.chat-markdown ol,
+.chat-markdown blockquote,
+.chat-markdown pre,
+.chat-markdown table {
+  margin: 0.45rem 0;
+}
+
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4,
+.chat-markdown h5,
+.chat-markdown h6 {
+  margin: 0.65rem 0 0.35rem;
+  color: #f8fafc;
+  font-size: 1em;
+  line-height: 1.35;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 1.25rem;
+}
+
+.chat-markdown li + li {
+  margin-top: 0.2rem;
+}
+
+.chat-markdown a {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.chat-markdown code {
+  padding: 0.1rem 0.28rem;
+  border-radius: 0.3rem;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fda4af;
+  font-size: 0.92em;
+}
+
+.chat-markdown pre {
+  overflow-x: auto;
+  padding: 0.75rem;
+  border-radius: 0.55rem;
+  background: rgba(2, 6, 23, 0.8);
+}
+
+.chat-markdown pre code {
+  padding: 0;
+  background: transparent;
+  color: #e2e8f0;
+}
+
+.chat-markdown blockquote {
+  padding-left: 0.75rem;
+  border-left: 3px solid rgba(148, 163, 184, 0.5);
+  color: #cbd5e1;
+}
+
+.chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.chat-markdown th,
+.chat-markdown td {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.chat-markdown th {
+  background: rgba(15, 23, 42, 0.8);
+}
+
 .chat-bubble p {
   margin: 0;
   line-height: 1.45;
@@ -1732,6 +1845,11 @@ h1 {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: #0f172a;
 }
 
 .chat-form input {

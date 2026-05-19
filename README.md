@@ -12,11 +12,17 @@
 
 ### 🔍 1. 视频搜索
 
+![视频搜索](pics/video_search.png)
+
+![视频搜索示例](pics/video_search_example1.png)
+
 - 支持按关键词搜索 YouTube 和哔哩哔哩公开视频。
 - 搜索结果流式返回，边搜索边展示。
 - 支持分页、跨页勾选、批量下载和单条视频总结。
 
 ### 📥 2. 视频下载
+
+![视频下载](pics/video_download.png)
 
 - 支持粘贴公开视频链接，解析标题、封面、时长和可下载格式。
 - 支持单条下载和批量下载。
@@ -24,6 +30,14 @@
 - 下载任务在后端异步执行，完成后可在浏览器保存文件；批量任务支持 ZIP 打包下载。
 
 ### 🧠 3. 视频总结
+
+![AI 视频总结](pics/ai_sum_summary.png)
+
+![AI 总结时间轴](pics/ai_sum_timeline.png)
+
+![AI 总结导图](pics/ai_sum_mindmap.png)
+
+![AI 视频对话](pics/ai_sum_dialogue.png)
 
 - 配置 OpenAI 兼容 API 后，可以基于字幕生成 AI 总结。
 - 支持大纲、分段要点、时间轴和思维导图。
