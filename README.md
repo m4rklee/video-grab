@@ -1,35 +1,31 @@
-# 🎬 拾影视频下载平台
+# Video Grab
 
-自托管的公开视频搜索、下载、AI 总结与视频对话工具。前端使用 Vue 3 + TypeScript + Vite，后端使用 FastAPI，视频解析与下载主要基于 yt-dlp，并对哔哩哔哩、抖音等平台补充了专用链路。
+> A self-hosted video search, download, AI summary, and video chat platform.
 
-## 🌱 一、背景
+拾影视频下载平台是一个自托管的公开视频搜索、下载、AI 总结与视频对话工具。项目包含 Vue 3 前端和 FastAPI 后端，视频解析与下载主要基于 `yt-dlp`，并针对哔哩哔哩、抖音等平台补充专用链路。
 
-在做口语练习助手的课程推荐功能时需要搜集下载相关教学课程视频进行后续切片，如果利用现有的视频下载平台，需要将视频搜索和视频下载分两步进行，效率较低，且不支持批量下载。另外，为了精确找到教学视频，需要对视频内容做预先了解，现有的视频网站缺乏视频内容总结功能。
-针对这两个痛点问题，借助Cursor搭建了一个视频下载平台，集视频搜索和视频下载为一体。
+## Highlights
 
+- **Search and download in one flow**: 支持搜索公开视频并直接选择下载，减少“先找再粘贴”的操作成本。
+- **Batch download**: 支持跨页勾选、批量任务和 ZIP 打包下载。
+- **AI video summary**: 基于字幕生成大纲、分段摘要、时间轴和思维导图。
+- **Video chat**: 可围绕视频内容进行问答。
+- **Streaming search UX**: 搜索结果边返回边展示。
+- **Self-hosted stack**: 前后端分离，适合本地或私有服务器部署。
 
-## ✨ 二、功能介绍
+## Demo
 
-### 🔍 1. 视频搜索
+视频搜索：
 
 ![视频搜索](pics/video_search.png)
 
 ![视频搜索示例](pics/video_search_example1.png)
 
-- 支持按关键词搜索 YouTube 和哔哩哔哩公开视频。
-- 搜索结果流式返回，边搜索边展示。
-- 支持分页、跨页勾选、批量下载和单条视频总结。
-
-### 📥 2. 视频下载
+视频下载：
 
 ![视频下载](pics/video_download.png)
 
-- 支持粘贴公开视频链接，解析标题、封面、时长和可下载格式。
-- 支持单条下载和批量下载。
-- 支持选择清晰度。
-- 下载任务在后端异步执行，完成后可在浏览器保存文件；批量任务支持 ZIP 打包下载。
-
-### 🧠 3. 视频总结
+AI 总结：
 
 ![AI 视频总结](pics/ai_sum_summary.png)
 
@@ -37,72 +33,109 @@
 
 ![AI 总结导图](pics/ai_sum_mindmap.png)
 
+AI 视频对话：
+
 ![AI 视频对话](pics/ai_sum_dialogue.png)
 
-- 配置 OpenAI 兼容 API 后，可以基于字幕生成 AI 总结。
-- 支持大纲、分段要点、时间轴和思维导图。
+## Architecture
 
-### 💬 4. 视频对话
+```text
+Vue Frontend
+    |
+    v
+FastAPI Backend
+    |
+    +--> video search
+    +--> yt-dlp / platform-specific parsers
+    +--> download tasks
+    +--> subtitle extraction
+    +--> AI summary and video chat
+```
 
-- 对已生成总结的视频进行多轮追问。
-- 适合快速提炼课程、访谈、演讲、资讯视频中的关键信息。
+## Features
 
-## 🚀 三、使用方式
+| Module | Description |
+|---|---|
+| **Video Search** | 按关键词搜索 YouTube、哔哩哔哩等公开视频，搜索结果流式返回。 |
+| **Video Download** | 粘贴链接后解析标题、封面、时长和格式，支持单条下载。 |
+| **Batch Download** | 支持跨页勾选、批量下载和 ZIP 打包。 |
+| **AI Summary** | 配置 OpenAI-compatible API 后，基于字幕生成摘要、时间轴和思维导图。 |
+| **Video Chat** | 围绕视频字幕和内容进行问答。 |
+| **Configuration Docs** | `docs/` 中保留前后端配置、下载链路和安全说明。 |
 
-### 🖥️ 本地启动
+## Tech Stack
 
-后端：
+- **Frontend**: Vue 3, TypeScript, Vite, lucide-vue-next, D3, markmap
+- **Backend**: FastAPI, Uvicorn, yt-dlp, curl-cffi
+- **AI**: OpenAI-compatible API for summaries and chat
+- **Packaging**: Node.js, Python virtualenv, optional self-hosted deployment
+
+## Quick Start
+
+```bash
+git clone https://github.com/m4rklee/video-grab.git
+cd video-grab
+```
+
+Backend:
 
 ```bash
 cd backend
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8028
+cp .env.example .env
+uvicorn app.main:app --host 0.0.0.0 --port 9279
 ```
 
-前端：
+Frontend:
 
 ```bash
 cd frontend
-nvm use 22
 npm install
 npm run dev
 ```
 
-访问地址：
+前端默认端口由 `frontend/package.json` 控制：
 
-- 前端：http://localhost:9280
-- 后端 OpenAPI：http://localhost:8028/docs
-
-### ⚙️ 配置说明
-
-- 页面右上角“设置”可配置后端 API 地址、OpenAI Key、OpenAI Base URL、模型和哔哩哔哩 Cookie。
-- 服务端配置可复制 `backend/.env.example` 为 `backend/.env`。
-- 前端开发代理可通过 `frontend/.env.local` 配置 `VITE_API_TARGET`。
-
-### 🛠️ 系统依赖
-
-yt-dlp 合并音视频通常需要安装 ffmpeg：
-
-```bash
-brew install ffmpeg
+```text
+http://127.0.0.1:9280
 ```
 
-### ✅ 常用验证
+## Usage
 
-```bash
-cd backend && pytest
-cd frontend && npm run build
+1. 在搜索页输入关键词，选择需要下载的视频。
+2. 或在下载页粘贴公开视频链接。
+3. 选择格式和清晰度后创建下载任务。
+4. 若配置了 AI API，可对视频字幕生成总结、时间轴、思维导图并进行问答。
+
+更多配置见：
+
+```text
+docs/CONFIGURATION.md
+docs/FRONTEND.md
+docs/VIDEO_DOWNLOAD_SUMMARY.md
 ```
 
-更多说明可查看：
+## Project Structure
 
-- [docs/README.md](docs/README.md)
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
-- [docs/FRONTEND.md](docs/FRONTEND.md)
-- [docs/VIDEO_DOWNLOAD_SUMMARY.md](docs/VIDEO_DOWNLOAD_SUMMARY.md)
+```text
+backend/                 # FastAPI service, video parsing, download and AI summary APIs
+frontend/                # Vue 3 / Vite web app
+docs/                    # Configuration and implementation notes
+pics/                    # README screenshots
+```
 
-## 📄 许可证
+## Safety & Limitations
 
-[MIT](LICENSE)
+- 请只下载你有权访问和保存的公开视频内容。
+- 不同平台的解析能力会随站点策略变化而变化。
+- AI 总结依赖字幕质量和模型配置，结果需要人工核对。
+- 大文件下载建议在本地或私有服务器中运行，注意磁盘空间。
+
+## Roadmap
+
+- Add persistent download history.
+- Improve platform-specific parsers.
+- Add task queue observability.
+- Add deployment examples for NAS or VPS.
